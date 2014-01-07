@@ -42,20 +42,31 @@
 				var hide = (attr == 'hide') ? '' : 'none';
 				elm.css('display', toBoolean(value) ? show : hide);
 			}
+
 			var classBinder = function(elm, value)
 			{
-				if (angular.isObject(value) && !angular.isArray(value)) 
+				var addClasses = [];
+				var removeClasses = [];
+
+				if (angular.isObject(value) && !angular.isArray(value))
 				{
-					var results = [];
-					angular.forEach(value, function(value, index) 
+					angular.forEach(value, function(value, index)
 					{
-						if (value) results.push(index);
+						if (value) {
+							addClasses.push(index);
+						} else {
+							removeClasses.push(index);
+						}
 					});
-					value = results;
 				}
-				if (value) 
+
+				if ( addClasses )
 				{
-					elm.addClass(angular.isArray(value) ? value.join(' ') : value);
+					elm.addClass(angular.isArray(addClasses) ? addClasses.join(' ') : addClasses);
+				}
+
+				if(removeClasses) {
+					elm.removeClass(angular.isArray(removeClasses) ? removeClasses.join(' ') : removeClasses);
 				}
 			}
 
@@ -83,11 +94,17 @@
 				setupWatcher : function(bindonceValue) 
 				{
 					var that = this;
-					this.watcherRemover = $scope.$watch(bindonceValue, function(newValue) 
+					this.watcherRemover = $scope.$watch(bindonceValue, function(newValue, oldValue)
 					{
-						if (newValue == undefined) return;
-						that.removeWatcher();
+
+						if ( !that.ran && newValue == undefined && newValue === oldValue ) return;
+
+						if( !that.keepWatching ) {
+							that.removeWatcher();
+						}
+
 						that.runBinders();
+
 					}, true);
 				},
 
@@ -103,6 +120,7 @@
 				runBinders : function()
 				{
 					var i, max;
+					var that = this;
 					for (i = 0, max = this.binders.length; i < max; i ++)
 					{
 						var binder = this.binders[i];
@@ -111,20 +129,40 @@
 						switch(binder.attr)
 						{
 							case 'if':
-								if (toBoolean(value)) 
+								if (toBoolean(value))
 								{
-									binder.transclude(binder.scope.$new(), function (clone) 
+
+									binder.transclude(binder.scope.$new(), function (clone)
 									{
+
+										binder.elementClones = clone;
+
 										var parent = binder.element.parent();
 										var afterNode = binder.element && binder.element[binder.element.length - 1];
 										var parentNode = parent && parent[0] || afterNode && afterNode.parentNode;
 										var afterNextSibling = (afterNode && afterNode.nextSibling) || null;
-										angular.forEach(clone, function(node) 
+										angular.forEach(clone, function(node)
 										{
 											parentNode.insertBefore(node, afterNextSibling);
 										});
 									});
+
+								} else if( binder.elementClones ) {
+
+
+									var parent = binder.element.parent();
+									var afterNode = binder.element && binder.element[binder.element.length - 1];
+									var parentNode = parent && parent[0] || afterNode && afterNode.parentNode;
+
+									angular.forEach(binder.elementClones, function(node)
+									{
+										parentNode.removeChild(node);
+									});
+
+									binder.elementClones = null;
+
 								}
+
 								break;
 							case 'hide':
 							case 'show':
@@ -134,10 +172,20 @@
 								classBinder(binder.element, value);
 								break;
 							case 'text':
-								binder.element.text(value);
+								if (toBoolean(value))
+								{
+									binder.element.text(value);
+								} else {
+									binder.element.text('');
+								}
 								break;
 							case 'html':
-								binder.element.html(value);
+								if (toBoolean(value))
+								{
+									binder.element.html(value);
+								} else {
+									binder.element.html('');
+								}
 								break;
 							case 'style':
 								binder.element.css(value);
@@ -146,10 +194,10 @@
 								binder.element.attr(binder.attr, value);
 								if (msie) binder.element.prop('src', value);
 							case 'attr':
-								angular.forEach(binder.attrs, function(attrValue, attrKey) 
+								angular.forEach(binder.attrs, function(attrValue, attrKey)
 								{
 									var newAttr, newValue;
-									if (attrKey.match(/^boAttr./) && binder.attrs[attrKey]) 
+									if (attrKey.match(/^boAttr./) && binder.attrs[attrKey])
 									{
 										newAttr = attrKey.replace(/^boAttr/, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 										newValue = binder.scope.$eval(binder.attrs[attrKey]);
@@ -166,20 +214,30 @@
 								break;
 						}
 					}
+
 					this.ran = true;
-					this.binders = [];
+
+					if( !this.keepWatching ) {
+						this.binders = [];
+					}
+
 				}
 			}
 
 			return ctrl;
 		}],
 
-		link: function(scope, elm, attrs, bindonceController) 
+		link: function(scope, elm, attrs, bindonceController)
 		{
 			var value = (attrs.bindonce) ? scope.$eval(attrs.bindonce) : true;
 			if (value != undefined)
 			{
-				bindonceController.runBinders();
+				if(attrs.boKeepwatch) {
+					bindonceController.setupWatcher(attrs.bindonce);
+				}
+				else {
+					bindonceController.runBinders();
+				}
 			}
 			else
 			{
@@ -214,15 +272,15 @@ angular.forEach(
 function(boDirective)
 {
 	var childPriority = 200;
-	return angular.module('pasvaz.bindonce').directive(boDirective.directiveName, function() 
+	return angular.module('pasvaz.bindonce').directive(boDirective.directiveName, function()
 	{
 		var bindonceDirective =
-		{ 
+		{
 			priority: boDirective.priority || childPriority,
-			transclude: boDirective.transclude || false, 
-			terminal: boDirective.terminal || false, 
-			require: '^bindonce', 
-			compile: function (tElement, tAttrs, transclude) 
+			transclude: boDirective.transclude || false,
+			terminal: boDirective.terminal || false,
+			require: '^bindonce',
+			compile: function (tElement, tAttrs, transclude)
 			{
 				return function(scope, elm, attrs, bindonceController)
 				{
@@ -252,6 +310,7 @@ function(boDirective)
 					bindonceController.addBinder(
 					{
 						element		: 	elm,
+						elementClones : null,
 						attr		: 	boDirective.attribute,
 						attrs 		: 	attrs,
 						value		: 	attrs[boDirective.directiveName],
