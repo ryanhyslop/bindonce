@@ -9,16 +9,16 @@
 
  angular.module('pasvaz.bindonce', [])
 
- .directive('bindonce', function() 
+ .directive('bindonce', function()
  {
-	var toBoolean = function(value) 
+	var toBoolean = function(value)
 	{
-		if (value && value.length !== 0) 
+		if (value && value.length !== 0)
 		{
 			var v = angular.lowercase("" + value);
 			value = !(v == 'f' || v == '0' || v == 'false' || v == 'no' || v == 'n' || v == '[]');
 		}
-		else 
+		else
 		{
 			value = false;
 		}
@@ -26,7 +26,7 @@
 	}
 
 	var msie = parseInt((/msie (\d+)/.exec(angular.lowercase(navigator.userAgent)) || [])[1], 10);
-	if (isNaN(msie)) 
+	if (isNaN(msie))
 	{
 		msie = parseInt((/trident\/.*; rv:(\d+)/.exec(angular.lowercase(navigator.userAgent)) || [])[1], 10);
 	}
@@ -34,9 +34,9 @@
 	var bindonceDirective =
 	{
 		restrict: "AM",
-		controller: ['$scope', '$element', '$attrs', '$interpolate', function($scope, $element, $attrs, $interpolate) 
+		controller: ['$scope', '$element', '$attrs', '$interpolate', function($scope, $element, $attrs, $interpolate)
 		{
-			var showHideBinder = function(elm, attr, value) 
+			var showHideBinder = function(elm, attr, value)
 			{
 				var show = (attr == 'show') ? '' : 'none';
 				var hide = (attr == 'hide') ? '' : 'none';
@@ -77,8 +77,9 @@
 				group : $attrs.boName,
 				element : $element,
 				ran : false,
+				keepWatching: $attrs.boKeepwatch,
 
-				addBinder : function(binder) 
+				addBinder : function(binder)
 				{
 					this.binders.push(binder);
 
@@ -91,7 +92,7 @@
 					}
 				},
 
-				setupWatcher : function(bindonceValue) 
+				setupWatcher : function(bindonceValue)
 				{
 					var that = this;
 					this.watcherRemover = $scope.$watch(bindonceValue, function(newValue, oldValue)
@@ -108,7 +109,7 @@
 					}, true);
 				},
 
-				removeWatcher : function() 
+				removeWatcher : function()
 				{
 					if (this.watcherRemover != undefined)
 					{
@@ -293,7 +294,7 @@ function(boDirective)
 
 						while (element[0].nodeType != 9 && element.length)
 						{
-							if ((parentValue = element.data('$bindonceController')) 
+							if ((parentValue = element.data('$bindonceController'))
 								&& parentValue.group == name)
 							{
 								bindonceController = parentValue
