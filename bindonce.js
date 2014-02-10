@@ -135,7 +135,6 @@
 
                                     binder.transclude(binder.scope.$new(), function (clone)
                                     {
-
                                         binder.elementClones = clone;
 
                                         var parent = binder.element.parent();
@@ -199,8 +198,15 @@
                                     if (attrKey.match(/^boAttr./) && binder.attrs[attrKey])
                                     {
                                         newAttr = attrKey.replace(/^boAttr/, '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+
                                         newValue = binder.scope.$eval(binder.attrs[attrKey]);
-                                        binder.element.attr(newAttr, newValue);
+
+                                        if(newValue) {
+                                            binder.element.attr(newAttr, newValue);
+                                        } else {
+                                            binder.element.attr(newAttr, '');
+                                        }
+
                                     }
                                 });
                                 break;
